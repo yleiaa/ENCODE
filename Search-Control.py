@@ -4,7 +4,6 @@ import sys
 import json
 import argparse
 import webbrowser
-import urllib.parse
 import urllib.request
 
 parser = argparse.ArgumentParser(description='Searches on the Encode website for controls')
