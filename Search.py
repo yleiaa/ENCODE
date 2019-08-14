@@ -4,7 +4,7 @@ import sys
 import json
 import argparse
 import urllib.request
-import multiprocessing
+from multiprocessing.pool import ThreadPool
 
 parser = argparse.ArgumentParser(description='Searches on the Encode website')
 parser.add_argument('--target', help='name of target')
@@ -42,15 +42,21 @@ with urllib.request.urlopen(searchURL) as page:
     downloadURL=page.get('batch_download')
 
 txtFile=urllib.request.urlopen(downloadURL)
-linkNum=0
+lineNum=0
+downloadLinks=[]
 for line in txtFile:
     line=str(line.strip())
-    link=line[2:-1]
-    linkNum+=1
-    if linkNum==1:
-        metadata=urllib.request.urlopen(link) #Information table for links in file-could be useful later?
-    elif linkNum>1:
-        urllib.request.urlretrieve(link, 'rb')
+    line=line[2:-1]
+    lineNum+=1
+    if lineNum==1:
+        metadata=urllib.request.urlopen(line) #Information table for links in file-could be useful later?
+    elif lineNum>1:
+        downloadLinks.append(line)
+N=len(downloadLinks)
+
+        
+
+
         
 
 #page['facets'][0]['terms']=AssayTypesgit
