@@ -50,12 +50,8 @@ for line in txtFile:
     if linkNum==1:
         metadata=urllib.request.urlopen(link) #Information table for links in file-could be useful later?
     elif linkNum>1:
-        print(link)
+        urllib.request.urlretrieve(link, 'rb')
         
-
-
-
-
 
 #page['facets'][0]['terms']=AssayTypesgit
 #page['facets'][1]['terms']=AssayTitles
