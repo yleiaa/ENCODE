@@ -6,9 +6,12 @@ import argparse
 import urllib.request
 from multiprocessing.pool import ThreadPool
 
+def download(link):
+    urllib.request.urlretrieve(link)
+
 parser = argparse.ArgumentParser(description='Searches on the Encode website')
-parser.add_argument('--target', help='name of target')
-parser.add_argument("biosample", help='biosample term name')
+parser.add_argument('--target', help='name of target') #protein
+parser.add_argument("biosample", help='biosample term name') 
 args=parser.parse_args()
 
 searchURL='https://www.encodeproject.org/matrix/?type=Experiment&status=released'
@@ -33,31 +36,29 @@ with urllib.request.urlopen(searchURL) as page:
         biosample=i.get('key')
         if biosample==args.biosample:
             resultAmt=i.get('doc_count')
-            break
-    if resultAmt > 0:
-        print(str(resultAmt)+' experiments found.')
-    else:
-        print('No experiments found with that biosample. Try again.')
-        SystemExit
+            if resultAmt > 0:
+                print(str(resultAmt)+' experiments found.')
+                break
+            else:
+                print('No experiments found with that biosample. Try again.')
+                SystemExit
     downloadURL=page.get('batch_download')
 
-txtFile=urllib.request.urlopen(downloadURL)
 lineNum=0
 downloadLinks=[]
+txtFile=urllib.request.urlopen(downloadURL)
 for line in txtFile:
     line=str(line.strip())
     line=line[2:-1]
     lineNum+=1
     if lineNum==1:
-        metadata=urllib.request.urlopen(line) #Information table for links in file-could be useful later?
+        info=urllib.request.urlopen(line)
     elif lineNum>1:
         downloadLinks.append(line)
-N=len(downloadLinks)
 
-        
+with ThreadPool() as pool:
+    results=pool.map(download, downloadLinks)
 
-
-        
 
 #page['facets'][0]['terms']=AssayTypesgit
 #page['facets'][1]['terms']=AssayTitles

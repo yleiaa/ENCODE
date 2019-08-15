@@ -20,16 +20,6 @@ searchURL+='&format=json' #Puts in json format
 
 with urllib.request.urlopen(searchURL) as page:
     page=json.loads(page.read().decode())
-    assayTitles=page['facets'][1]['terms'] 
-    TFAmt=0
-    for i in assayTitles:
-        assay=i.get('key')
-        if assay=='TF ChIP-seq':
-            TFAmt=i.get('doc_count') 
-            break
-    if TFAmt <= 0:
-        print('No experimenrs found for TF ChIP-seq. Try again')
-        SystemExit
     biosamples=page['facets'][9]['terms']
     for i in biosamples:
         biosample=i.get('key')
