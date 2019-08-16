@@ -10,8 +10,8 @@ def download(link):
     urllib.request.urlretrieve(link)
 
 parser = argparse.ArgumentParser(description='Searches on the Encode website')
-parser.add_argument('--target', help='name of target') #protein
-parser.add_argument("biosample", help='biosample term name') 
+parser.add_argument('--target', help='name of target protein')
+parser.add_argument("biosample", help='biosample/cell name') 
 args=parser.parse_args()
 
 searchURL='https://www.encodeproject.org/matrix/?type=Experiment&status=released'
