@@ -58,6 +58,9 @@ for line in txtFile:
     elif lineNum>1:
         downloadLinks.append(line)
 
+with ThreadPool() as pool:
+    results=pool.map(download, downloadLinks)
+
 
 
 #page['facets'][0]['terms']=AssayTypesgit
