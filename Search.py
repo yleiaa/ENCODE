@@ -26,7 +26,7 @@ def download(link):
 
 parser = argparse.ArgumentParser(description='Searches on the Encode website')
 parser.add_argument('biosample', help='Biosample/cell name') 
-parser.add_argument('--target', type=bool, default=False, help='Are you searching for a target protein?') 
+parser.add_argument('-t', '--target', type=bool, nargs='?', default=False, help='Are you searching for a target protein?') 
 args=parser.parse_args()
 
 #Build Search Query
@@ -84,7 +84,7 @@ for line in txtFile:
         downloadLinks.append(line)
 
 with ThreadPool() as pool:
-    results=pool.map(download, downloadLinks)
+   results=pool.map(download, downloadLinks)
 
 
 '''   
