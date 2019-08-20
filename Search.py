@@ -6,20 +6,14 @@ import argparse
 import urllib.request
 from multiprocessing.pool import ThreadPool
 
-def filterAudits(matrixURL):
-    def build(auditDict,filter):
-        addon=''
-        for i in auditDict:
-            if i.get('doc_count')>0:
-                audit=i.get('key')
-                fixed=audit.replace(' ','+')
-                addon+=filter+fixed
-        return addon
-    errorStr=build(matrixURL['facets'][14]['terms'], '&audit.ERROR.category%21=')
-    complaintStr=build(matrixURL['facets'][15]['terms'], '&audit.NOT_COMPLIANT.category%21=')
-    #warningStr=build(matrixURL['facets'][16]['terms'],'&audit.WARNING.category%21=')
-    fullStr=errorStr+complaintStr#+warningStr
-    return fullStr
+def auditStr(auditDict, auditFilter):
+    addon=''
+    for i in auditDict:
+        if i.get('doc_count')>0:
+            audit=i.get('key')
+            fixed=audit.replace(' ','+')
+            addon+=auditFilter+fixed
+    return addon
 
 def download(link):
     urllib.request.urlretrieve(link)
@@ -41,8 +35,10 @@ url1+=generalAddon
 
 with urllib.request.urlopen(url1+'&format=json') as page:
     page=json.loads(page.read().decode())
-    audits=filterAudits(page)
-
+    errorStr=auditStr(page['facets'][14]['terms'], '&audit.ERROR.category%21=')
+    complaintStr=auditStr(page['facets'][15]['terms'], '&audit.NOT_COMPLIANT.category%21=')
+audits=errorStr+complaintStr
+    
 if args.target is False:
     searchURL=url1+audits+'&format=json'
 else:
@@ -52,7 +48,6 @@ else:
         print('Target Options:')
         for i in targets:
             if i.get('doc_count')>0:
-                #print(i.get('key') #Space them out
                 print(str(i.get('doc_count'))+' results found for '+i.get('key'))
         vaildTarget=False
         target=input('Enter Target: ')
@@ -76,7 +71,7 @@ with urllib.request.urlopen(searchURL) as page:
                 print(str(resultAmt)+' results found.')
             if resultAmt < 1:
                 print('No experiments found with that biosample. Try again.')
-                SystemExit
+                sys.exit()
     downloadURL=page.get('batch_download')
 
 lineNum=0
@@ -92,7 +87,7 @@ for line in txtFile:
         downloadLinks.append(line)
 
 with ThreadPool() as pool:
-     results=pool.map(download, downloadLinks)
+    results=pool.map(download, downloadLinks)
 
 
 '''   
