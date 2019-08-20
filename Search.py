@@ -54,7 +54,15 @@ else:
             if i.get('doc_count')>0:
                 #print(i.get('key') #Space them out
                 print(str(i.get('doc_count'))+' results found for '+i.get('key'))
-    target=input('Enter Target: ')
+        vaildTarget=False
+        target=input('Enter Target: ')
+        for i in targets:
+            if i.get('doc_count')>0 and target==i.get('key'):
+                vaildTarget=True
+                break
+        if vaildTarget is False:
+            print('Not a valid target. Try again.')
+            sys.exit()
     searchURL=baseURL+'&target.label='+target+targetAddon+generalAddon+audits+'&format=json'
 
 with urllib.request.urlopen(searchURL) as page:
@@ -84,7 +92,7 @@ for line in txtFile:
         downloadLinks.append(line)
 
 with ThreadPool() as pool:
-   results=pool.map(download, downloadLinks)
+     results=pool.map(download, downloadLinks)
 
 
 '''   
