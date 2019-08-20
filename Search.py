@@ -84,5 +84,26 @@ for line in txtFile:
         downloadLinks.append(line)
 
 with ThreadPool() as pool:
-   results=pool.map(download, downloadLinks)
-    
+    results=pool.map(download, downloadLinks)
+
+
+'''   
+page['facets'][0]['terms']=AssayTypesgit
+page['facets'][1]['terms']=AssayTitles
+page['facets'][2]['terms']=Status
+page['facets'][3]['terms']=Project
+page['facets'][4]['terms']=GenomeAssembly
+page['facets'][5]['terms']=TargetCategory
+page['facets'][6]['terms']=TargetofAssay
+page['facets'][7]['terms']=Organism
+page['facets'][8]['terms']=BiosampleClassifications
+page['facets'][9]['terms']=
+page['facets'][10]['terms']=Organ
+page['facets'][11]['terms']=Cell
+page['facets'][12]['terms']=AvailableFileTypes
+page['facets'][13]['terms']=Lab
+#AuditCategories
+page['facets'][14]['terms']=Errors
+page['facets'][15]['terms']=Complaints
+page['facets'][16]['terms']=Warnings
+'''
