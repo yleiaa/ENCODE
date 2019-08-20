@@ -83,9 +83,6 @@ for line in txtFile:
     elif lineNum>1:
         downloadLinks.append(line)
 
-for i in downloadLinks:
-    print(i)
-
 with ThreadPool() as pool:
    results=pool.map(download, downloadLinks)
     
