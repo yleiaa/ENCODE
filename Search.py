@@ -2,6 +2,7 @@
 import os
 import sys
 import json
+import string
 import argparse
 import urllib.request
 from multiprocessing.pool import ThreadPool
@@ -84,11 +85,14 @@ for line in txtFile:
     if lineNum==1:
         info=urllib.request.urlopen(line)
     elif lineNum>1:
+        link=line.encode('ASCII')
         downloadLinks.append(line)
+
+print(str(len(downloadLinks))+' files found.')
 
 with ThreadPool() as pool:
     results=pool.map(download, downloadLinks)
-
+print('Download completed.')
 
 '''   
 page['facets'][0]['terms']=AssayTypesgit
