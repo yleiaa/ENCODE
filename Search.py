@@ -3,6 +3,7 @@ import os
 import sys
 import json
 import string
+import os.path
 import argparse
 import urllib.request
 from multiprocessing.pool import ThreadPool
@@ -16,8 +17,9 @@ def auditStr(auditDict, auditFilter):
             addon+=auditFilter+fixed
     return addon
 
-def download(link):
-    urllib.request.urlretrieve(link)
+def download(link, name):
+    path=os.path.join(os.getcwd(), name)
+    urllib.request.urlretrieve(link, path)
 
 parser = argparse.ArgumentParser(description='Searches on the Encode website')
 parser.add_argument('biosample', help='Biosample/cell name') 
@@ -42,6 +44,7 @@ audits=errorStr+complaintStr
     
 if args.target is False:
     searchURL=url1+audits+'&format=json'
+    prefix='CNTL.'+args.biosample+'.'
 else:
     with urllib.request.urlopen(url1+audits+'&format=json') as page:
         page=json.loads(page.read().decode())
@@ -59,6 +62,7 @@ else:
         if vaildTarget is False:
             print('Not a valid target. Try again.')
             sys.exit()
+    prefix=target+'.'+args.biosample+'.'
     searchURL=baseURL+'&target.label='+target+targetAddon+generalAddon+audits+'&format=json'
 
 with urllib.request.urlopen(searchURL) as page:
@@ -69,11 +73,12 @@ with urllib.request.urlopen(searchURL) as page:
         if biosample==args.biosample:
             resultAmt=i.get('doc_count')
             if resultAmt>0:
-                print(str(resultAmt)+' results found.')
+                print(str(resultAmt)+' experiments found.')
             if resultAmt < 1:
                 print('No experiments found with that biosample. Try again.')
                 sys.exit()
     downloadURL=page.get('batch_download')
+
 
 lineNum=0
 downloadLinks=[]
@@ -85,13 +90,19 @@ for line in txtFile:
     if lineNum==1:
         info=urllib.request.urlopen(line)
     elif lineNum>1:
-        link=line.encode('ASCII')
+        #link=line.encode('ASCII')
         downloadLinks.append(line)
 
-print(str(len(downloadLinks))+' files found.')
+print(str(len(downloadLinks))+' files found:')
+
+prefixes=[]
+for i in downloadLinks:
+    prefixes.append(prefix+i[59:])
+
+a = [(i, j) for i in downloadLinks for j in prefixes]
 
 with ThreadPool() as pool:
-    results=pool.map(download, downloadLinks)
+    results=pool.starmap(download, a)
 print('Download completed.')
 
 '''   
