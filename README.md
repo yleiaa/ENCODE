@@ -5,4 +5,4 @@ and downloads them in parallel to the programs current diectory.
 
 Command line example for target:
 
-`/path/Search.py K562 -t`
+`Search.py K562 -t`
