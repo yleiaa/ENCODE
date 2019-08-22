@@ -6,16 +6,17 @@ import string
 import os.path
 import argparse
 import urllib.request
+from time import process_time
 from multiprocessing.pool import ThreadPool
 
 def auditStr(auditDict, auditFilter):
-    addon=''
+    string=''
     for i in auditDict:
         if i.get('doc_count')>0:
             audit=i.get('key')
             fixed=audit.replace(' ','+')
-            addon+=auditFilter+fixed
-    return addon
+            string+=auditFilter+fixed
+    return string
 
 def download(link, name):
     path=os.path.join(os.getcwd(), name)
@@ -69,8 +70,7 @@ with urllib.request.urlopen(searchURL) as page:
     page=json.loads(page.read().decode())
     biosamples=page['facets'][9]['terms']
     for i in biosamples:
-        biosample=i.get('key')
-        if biosample==args.biosample:
+        if i.get('key')==args.biosample:
             resultAmt=i.get('doc_count')
             if resultAmt>0:
                 print(str(resultAmt)+' experiments found.')
@@ -90,7 +90,6 @@ for line in txtFile:
     if lineNum==1:
         info=urllib.request.urlopen(line)
     elif lineNum>1:
-        #link=line.encode('ASCII')
         downloadLinks.append(line)
 
 print(str(len(downloadLinks))+' files found:')
@@ -100,6 +99,7 @@ for i in downloadLinks:
     prefixes.append(prefix+i[59:])
 
 a = [(i, j) for i in downloadLinks for j in prefixes]
+
 
 with ThreadPool() as pool:
     results=pool.starmap(download, a)
