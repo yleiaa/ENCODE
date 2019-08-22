@@ -4,4 +4,5 @@ assay if looking for non-control experiments. Then, pulls fastq files for experi
 and downloads them in parallel to the programs current diectory.
 
 #Command line example for target
+
 /path/Search.py K562 -t
