@@ -24,7 +24,7 @@ def download(link, name):
 
 parser = argparse.ArgumentParser(description='Searches on the Encode website')
 parser.add_argument('biosample', help='Biosample/cell name') 
-parser.add_argument('-t', '--target', type=bool, nargs='?', default=False, help='Are you searching for a target protein?') 
+parser.add_argument('-t', '--target', nargs='?', help='Put -t if earching for a target protein') 
 args=parser.parse_args()
 
 #Build Search Query
@@ -41,30 +41,35 @@ with urllib.request.urlopen(url1+'&format=json') as page:
     page=json.loads(page.read().decode())
     errorStr=auditStr(page['facets'][14]['terms'], '&audit.ERROR.category%21=')
     complaintStr=auditStr(page['facets'][15]['terms'], '&audit.NOT_COMPLIANT.category%21=')
-audits=errorStr+complaintStr
+    warningStr=auditStr(page['facets'][16]['terms'],'&audit.WARNING.category%21=')
+tAudits=errorStr+complaintStr
+allAudits=tAudits+warningStr
     
 if args.target is False:
-    searchURL=url1+audits+'&format=json'
+    searchURL=url1+allAudits+'&format=json'
     prefix='CNTL.'+args.biosample+'.'
-else:
-    with urllib.request.urlopen(url1+audits+'&format=json') as page:
+else: #If Target
+    with urllib.request.urlopen(url1+tAudits+'&format=json') as page:
         page=json.loads(page.read().decode())
         targets=page['facets'][6]['terms']
-        print('Target Options:')
-        for i in targets:
-            if i.get('doc_count')>0:
-                print(str(i.get('doc_count'))+' results found for '+i.get('key'))
         vaildTarget=False
-        target=input('Enter Target: ')
+        if args.target is None:
+            print('Target Options:')
+            for i in targets:
+                if i.get('doc_count')>0:
+                    print(str(i.get('doc_count'))+' results found for '+i.get('key'))
+            target=input('Enter Target: ')
+        else:
+            target=args.target
         for i in targets:
-            if i.get('doc_count')>0 and target==i.get('key'):
+            if target==i.get('key') and i.get('doc_count')>0:
                 vaildTarget=True
                 break
         if vaildTarget is False:
             print('Not a valid target. Try again.')
             sys.exit()
     prefix=target+'.'+args.biosample+'.'
-    searchURL=baseURL+'&target.label='+target+targetAddon+generalAddon+audits+'&format=json'
+    searchURL=baseURL+'&target.label='+target+targetAddon+generalAddon+tAudits+'&format=json'
 
 with urllib.request.urlopen(searchURL) as page:
     page=json.loads(page.read().decode())
@@ -79,7 +84,6 @@ with urllib.request.urlopen(searchURL) as page:
                 sys.exit()
     downloadURL=page.get('batch_download')
 
-
 lineNum=0
 downloadLinks=[]
 txtFile=urllib.request.urlopen(downloadURL)
@@ -92,14 +96,13 @@ for line in txtFile:
     elif lineNum>1:
         downloadLinks.append(line)
 
-print(str(len(downloadLinks))+' files found:')
+print(str(len(downloadLinks))+' files found. Beginning download.')
 
 prefixes=[]
 for i in downloadLinks:
     prefixes.append(prefix+i[59:])
 
 a = [(i, j) for i in downloadLinks for j in prefixes]
-
 
 with ThreadPool() as pool:
     results=pool.starmap(download, a)
