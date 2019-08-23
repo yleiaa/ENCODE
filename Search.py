@@ -104,7 +104,7 @@ for i in downloadLinks:
 a = [(i, j) for i in downloadLinks for j in prefixes]
 with ThreadPool() as pool:
     results=pool.starmap(download, a)
-print('Download completed. Files save to '+os.getcwd())
+print('Download completed. Files saved to '+os.getcwd())
 
 '''   
 page['facets'][0]['terms']=AssayTypesgit
