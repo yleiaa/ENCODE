@@ -6,7 +6,6 @@ import string
 import os.path
 import argparse
 import urllib.request
-from time import process_time
 from multiprocessing.pool import ThreadPool
 
 def auditStr(auditDict, auditFilter):
@@ -22,14 +21,15 @@ def download(link, name):
     path=os.path.join(os.getcwd(), name)
     urllib.request.urlretrieve(link, path)
 
-parser = argparse.ArgumentParser(description='Searches on the Encode website')
-parser.add_argument('biosample', help='Biosample/cell name') 
-parser.add_argument('-t', '--target', nargs='?', help='Put -t if earching for a target protein') 
+parser = argparse.ArgumentParser(description='Searches on the Encode website.')
+parser.add_argument('biosample', help='Biosample/cell name.')
+parser.add_argument('-t', '--target', nargs='?', default='', help='Add -t if earching for a target protein.')
+parser.add_argument('-w', '--warnings', nargs='?', type=bool, default=False, help='Add -w to filter out experiments with warnings.')
 args=parser.parse_args()
 
 #Build Search Query
 baseURL='https://www.encodeproject.org/matrix/?type=Experiment&status=released'
-if args.target is False: #if it IS a control search
+if args.target=='': #if it IS a control search
     url1=baseURL+'&assay_title=Control+ChIP-seq' +'&target.investigated_as=control'+'&target.label=Control' 
 else:
     targetAddon='&target.label%21=Control'+'&assay_title=TF+ChIP-seq'
@@ -41,15 +41,16 @@ with urllib.request.urlopen(url1+'&format=json') as page:
     page=json.loads(page.read().decode())
     errorStr=auditStr(page['facets'][14]['terms'], '&audit.ERROR.category%21=')
     complaintStr=auditStr(page['facets'][15]['terms'], '&audit.NOT_COMPLIANT.category%21=')
-    warningStr=auditStr(page['facets'][16]['terms'],'&audit.WARNING.category%21=')
-tAudits=errorStr+complaintStr
-allAudits=tAudits+warningStr
+    audits=errorStr+complaintStr
+    if args.warnings is not False:
+        warningStr=auditStr(page['facets'][16]['terms'],'&audit.WARNING.category%21=')
+        audits+=warningStr
     
-if args.target is False:
-    searchURL=url1+allAudits+'&format=json'
+if args.target=='':
+    searchURL=url1+audits+'&format=json'
     prefix='CNTL.'+args.biosample+'.'
 else: #If Target
-    with urllib.request.urlopen(url1+tAudits+'&format=json') as page:
+    with urllib.request.urlopen(url1+audits+'&format=json') as page:
         page=json.loads(page.read().decode())
         targets=page['facets'][6]['terms']
         vaildTarget=False
@@ -69,7 +70,7 @@ else: #If Target
             print('Not a valid target. Try again.')
             sys.exit()
     prefix=target+'.'+args.biosample+'.'
-    searchURL=baseURL+'&target.label='+target+targetAddon+generalAddon+tAudits+'&format=json'
+    searchURL=baseURL+'&target.label='+target+targetAddon+generalAddon+audits+'&format=json'
 
 with urllib.request.urlopen(searchURL) as page:
     page=json.loads(page.read().decode())
@@ -97,16 +98,13 @@ for line in txtFile:
         downloadLinks.append(line)
 
 print(str(len(downloadLinks))+' files found. Beginning download.')
-
 prefixes=[]
 for i in downloadLinks:
     prefixes.append(prefix+i[59:])
-
 a = [(i, j) for i in downloadLinks for j in prefixes]
-
 with ThreadPool() as pool:
     results=pool.starmap(download, a)
-print('Download completed.')
+print('Download completed. Files save to '+os.getcwd())
 
 '''   
 page['facets'][0]['terms']=AssayTypesgit
