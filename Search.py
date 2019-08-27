@@ -9,13 +9,11 @@ import urllib.request
 from multiprocessing.pool import ThreadPool
 
 def auditStr(auditDict, auditFilter):
-    string=''
+    s=''
     for i in auditDict:
         if i.get('doc_count')>0:
-            audit=i.get('key')
-            fixed=audit.replace(' ','+')
-            string+=auditFilter+fixed
-    return string
+            s+=auditFilter+i.get('key').replace(' ','+')
+    return s
 
 def download(link, name):
     path=os.path.join(os.getcwd(), name)
@@ -23,13 +21,12 @@ def download(link, name):
 
 parser = argparse.ArgumentParser(description='Searches on the Encode website.')
 parser.add_argument('biosample', help='Biosample/cell name.')
-parser.add_argument('-t', '--target', nargs='?', default='', help='Add -t if earching for a target protein.')
+parser.add_argument('-t', '--target', nargs='?', default='control', help='Add -t if earching for a target protein.')
 parser.add_argument('-w', '--warnings', nargs='?', type=bool, default=False, help='Add -w to filter out experiments with warnings.')
 args=parser.parse_args()
 
-#Build Search Query
 baseURL='https://www.encodeproject.org/matrix/?type=Experiment&status=released'
-if args.target=='': #if it IS a control search
+if args.target is 'control':
     url1=baseURL+'&assay_title=Control+ChIP-seq' +'&target.investigated_as=control'+'&target.label=Control' 
 else:
     targetAddon='&target.label%21=Control'+'&assay_title=TF+ChIP-seq'
@@ -45,30 +42,30 @@ with urllib.request.urlopen(url1+'&format=json') as page:
     if args.warnings is not False:
         warningStr=auditStr(page['facets'][16]['terms'],'&audit.WARNING.category%21=')
         audits+=warningStr
-    
-if args.target=='':
+
+if args.target is 'control':
     searchURL=url1+audits+'&format=json'
     prefix='CNTL.'+args.biosample+'.'
-else: #If Target
+elif args.target is not 'control':
     with urllib.request.urlopen(url1+audits+'&format=json') as page:
         page=json.loads(page.read().decode())
         targets=page['facets'][6]['terms']
         vaildTarget=False
-        if args.target is None:
-            print('Target Options:')
+        if args.target is not None:
+            target=args.target
+        elif args.target is None:
+            print('{:15}{:}'.format('Target:','Results:'))
             for i in targets:
                 if i.get('doc_count')>0:
-                    print(str(i.get('doc_count'))+' results found for '+i.get('key'))
+                    print('{:15}{:}'.format(i.get('key'),i.get('doc_count')))
             target=input('Enter Target: ')
-        else:
-            target=args.target
-        for i in targets:
-            if target==i.get('key') and i.get('doc_count')>0:
-                vaildTarget=True
-                break
-        if vaildTarget is False:
-            print('Not a valid target. Try again.')
-            sys.exit()
+    for i in targets:
+        if target==i.get('key') and i.get('doc_count')>0:
+            vaildTarget=True
+            break
+    if vaildTarget is False:
+        print('Not a valid target. Try again.')
+        sys.exit()
     prefix=target+'.'+args.biosample+'.'
     searchURL=baseURL+'&target.label='+target+targetAddon+generalAddon+audits+'&format=json'
 
@@ -102,6 +99,7 @@ prefixes=[]
 for i in downloadLinks:
     prefixes.append(prefix+i[59:])
 a = [(i, j) for i in downloadLinks for j in prefixes]
+
 with ThreadPool() as pool:
     results=pool.starmap(download, a)
 print('Download completed. Files saved to '+os.getcwd())
