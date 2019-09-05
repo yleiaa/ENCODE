@@ -8,6 +8,18 @@ import argparse
 import urllib.request
 from multiprocessing.pool import ThreadPool
 
+def CheckURL(url):
+    validURL=True
+    try:
+        urllib.request.urlopen(url)
+    except urllib.request.HTTPError:
+        validURL=False
+        print('HTTP error')
+    except urllib.request.URLError:
+        validURL=False
+        print('URL error')
+    return validURL
+
 def auditStr(auditDict, auditFilter):
     s=''
     for i in auditDict:
@@ -19,67 +31,101 @@ def download(link, name):
     path=os.path.join(os.getcwd(), name)
     urllib.request.urlretrieve(link, path)
 
-parser = argparse.ArgumentParser(description='Searches on the Encode website.')
-parser.add_argument('biosample', help='Biosample/cell name.')
+parser = argparse.ArgumentParser(description='Searches the Encode website.')
+parser.add_argument('biosample', nargs='?', help='Biosample/cell name.')
 parser.add_argument('-t', '--target', nargs='?', default='control', help='Add -t if earching for a target protein.')
 parser.add_argument('-w', '--warnings', nargs='?', type=bool, default=False, help='Add -w to filter out experiments with warnings.')
 args=parser.parse_args()
 
-baseURL='https://www.encodeproject.org/matrix/?type=Experiment&status=released'
+baseURL='https://www.encodeproject.org/search/?type=Experiment&status=released'
 if args.target is 'control':
-    url1=baseURL+'&assay_title=Control+ChIP-seq' +'&target.investigated_as=control'+'&target.label=Control' 
+    addOn='&assay_title=Control+ChIP-seq' +'&target.investigated_as=control'+'&target.label=Control' 
 else:
-    targetAddon='&target.label%21=Control'+'&assay_title=TF+ChIP-seq'
-    url1=baseURL+targetAddon
-generalAddon='&biosample_ontology.term_name='+args.biosample+'&files.file_type=fastq'
-url1+=generalAddon
+    addOn='&target.label%21=Control'+'&assay_title=TF+ChIP-seq'
+general='&files.file_type=fastq'
+url1=baseURL+addOn+general
 
 with urllib.request.urlopen(url1+'&format=json') as page:
     page=json.loads(page.read().decode())
-    errorStr=auditStr(page['facets'][14]['terms'], '&audit.ERROR.category%21=')
-    complaintStr=auditStr(page['facets'][15]['terms'], '&audit.NOT_COMPLIANT.category%21=')
+    errorStr=auditStr(page['facets'][29]['terms'], '&audit.ERROR.category%21=')
+    complaintStr=auditStr(page['facets'][30]['terms'], '&audit.NOT_COMPLIANT.category%21=')
     audits=errorStr+complaintStr
     if args.warnings is not False:
-        warningStr=auditStr(page['facets'][16]['terms'],'&audit.WARNING.category%21=')
+        warningStr=auditStr(page['facets'][31]['terms'],'&audit.WARNING.category%21=')
         audits+=warningStr
 
-if args.target is 'control':
-    searchURL=url1+audits+'&format=json'
-    prefix='CNTL.'+args.biosample+'.'
-elif args.target is not 'control':
+#Get Biosample
+if args.biosample is not None:
+    biosample=args.biosample
+else:
     with urllib.request.urlopen(url1+audits+'&format=json') as page:
         page=json.loads(page.read().decode())
-        targets=page['facets'][6]['terms']
+        biosamples=page['facets'][11]['terms']
+        print('{:60}{:}'.format('Biosample:','Results:'))
+        for i in biosamples:
+            if i.get('doc_count')>0:
+                print('{:60}{:}'.format(i.get('key'),i.get('doc_count')))
+        biosample=input('Enter Biosample: ')
+
+#Check Biosample
+while True:
+    biosample=biosample.replace(' ','+')
+    url2=baseURL+'&biosample_ontology.term_name='+biosample+addOn+general+audits
+    validBiosample=CheckURL(url2)
+    if validBiosample is True:
+        print('Valid biosample.')
+        break
+    else:
+        print('Invalid biosample.')
+        with urllib.request.urlopen(url1+'&format=json') as page:
+            page=json.loads(page.read().decode())
+            biosamples=page['facets'][11]['terms']
+            print('{:60}{:}'.format('Biosample:','Results:'))
+            for i in biosamples:
+                if i.get('doc_count')>0:
+                    print('{:60}{:}'.format(i.get('key'),i.get('doc_count')))
+        biosample=input('Enter New Biosample: ')
+
+if args.target is 'control':
+    target=args.target
+    searchURL=url2+'&format=json'
+    prefix='CNTL'+biosample+'.'
+else:
+    with urllib.request.urlopen(url2+'&format=json') as page:
+        page=json.loads(page.read().decode())
+        targets=page['facets'][8]['terms']
         vaildTarget=False
         if args.target is not None:
             target=args.target
-        elif args.target is None:
-            print('{:15}{:}'.format('Target:','Results:'))
+        else:
+            print('{:60}{:}'.format('Target:','Results:'))
             for i in targets:
                 if i.get('doc_count')>0:
-                    print('{:15}{:}'.format(i.get('key'),i.get('doc_count')))
+                    print('{:60}{:}'.format(i.get('key'),i.get('doc_count')))
             target=input('Enter Target: ')
-    for i in targets:
-        if target==i.get('key') and i.get('doc_count')>0:
-            vaildTarget=True
+
+if target is not 'control':
+    while True:
+        target=target.replace(' ','+')
+        searchURL=baseURL+'&target.label='+target+addOn+general+audits+'&format=json'
+        validTarget=CheckURL(searchURL)
+        if validTarget is True:
+            print('Valid target.')
+            prefix=target+'.'+biosample+'.'
             break
-    if vaildTarget is False:
-        print('Not a valid target. Try again.')
-        sys.exit()
-    prefix=target+'.'+args.biosample+'.'
-    searchURL=baseURL+'&target.label='+target+targetAddon+generalAddon+audits+'&format=json'
+        else:
+            print('Invalid target.')
+            with urllib.request.urlopen(searchURL) as page:
+                page=json.loads(page.read().decode())
+                targets=page['facets'][8]['terms']
+                print('{:60}{:}'.format('Target:','Results:'))
+                for i in targets:
+                    if i.get('doc_count')>0:
+                        print('{:60}{:}'.format(i.get('key'),i.get('doc_count')))
+            target=input('Enter New Target: ')
 
 with urllib.request.urlopen(searchURL) as page:
     page=json.loads(page.read().decode())
-    biosamples=page['facets'][9]['terms']
-    for i in biosamples:
-        if i.get('key')==args.biosample:
-            resultAmt=i.get('doc_count')
-            if resultAmt>0:
-                print(str(resultAmt)+' experiments found.')
-            if resultAmt < 1:
-                print('No experiments found with that biosample. Try again.')
-                sys.exit()
     downloadURL=page.get('batch_download')
 
 lineNum=0
@@ -90,7 +136,8 @@ for line in txtFile:
     line=line[2:-1]
     lineNum+=1
     if lineNum==1:
-        info=urllib.request.urlopen(line)
+        path=os.path.join(os.getcwd(), prefix+'metadata')
+        urllib.request.urlretrieve(line, path)
     elif lineNum>1:
         downloadLinks.append(line)
 
@@ -103,24 +150,3 @@ a = [(i, j) for i in downloadLinks for j in prefixes]
 with ThreadPool() as pool:
     results=pool.starmap(download, a)
 print('Download completed. Files saved to '+os.getcwd())
-
-'''   
-page['facets'][0]['terms']=AssayTypesgit
-page['facets'][1]['terms']=AssayTitles
-page['facets'][2]['terms']=Status
-page['facets'][3]['terms']=Project
-page['facets'][4]['terms']=GenomeAssembly
-page['facets'][5]['terms']=TargetCategory
-page['facets'][6]['terms']=TargetofAssay
-page['facets'][7]['terms']=Organism
-page['facets'][8]['terms']=BiosampleClassifications
-page['facets'][9]['terms']=
-page['facets'][10]['terms']=Organ
-page['facets'][11]['terms']=Cell
-page['facets'][12]['terms']=AvailableFileTypes
-page['facets'][13]['terms']=Lab
-#AuditCategories
-page['facets'][14]['terms']=Errors
-page['facets'][15]['terms']=Complaints
-page['facets'][16]['terms']=Warnings
-'''
