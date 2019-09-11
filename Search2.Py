@@ -15,6 +15,14 @@ def auditStr(auditDict, auditFilter):
             s+=auditFilter+i.get('key').replace(' ','+')
     return s
 
+def CheckURL(url):
+    validURL=True
+    try:
+        urllib.request.urlopen(url)
+    except urllib.request.HTTPError:
+        validURL=False
+    return validURL
+
 def outputOptions(argList):
     def exit(inputI):
         if inputI=='e' or inputI=='E':
@@ -27,14 +35,6 @@ def outputOptions(argList):
     option=input('Enter your option or press e to exit: ')
     exit(option)
     return option
-
-def CheckURL(url):
-    validURL=True
-    try:
-        urllib.request.urlopen(url)
-    except urllib.request.HTTPError:
-        validURL=False
-    return validURL
 
 def download(link, name):
     path=os.path.join(os.getcwd(), name)
@@ -90,6 +90,7 @@ else:
     with urllib.request.urlopen(url2) as page:
         page=json.loads(page.read().decode())
         target=outputOptions(page['facets'][8]['terms']).replace(' ','+')
+
 while True: #Check Target
     searchURL=searchBase+'&target.label='+target+biosampleAdd
     validTarget=CheckURL(searchURL)
@@ -107,17 +108,13 @@ targetSummaries=[]
 with urllib.request.urlopen(searchURL) as page:
     page=json.loads(page.read().decode())
     targetTxt=page.get('batch_download')
-    for i in page.get('@graph'):
-        targetSummaries.append(baseURL+i.get('@id')+'?format=json')
-print(str(len(targetSummaries))+' target experiments found.')
-
-cntlSummaries=[]
-for i in targetSummaries:
-    with urllib.request.urlopen(i) as page:
-        page=json.loads(page.read().decode())
-        cntl=page['possible_controls'][0]['@id']
-        cntlSummaries.append(baseURL+cntl+'?format=json')
-print(str(len(cntlSummaries))+' control experiments found.')
+    for i in page['@graph']:
+        audit=i.get('audit')
+        if type(audit.get('INTERNAL_ACTION')) is list:
+            for j in audit.get('INTERNAL_ACTION'):
+                if j.get('name')=='audit_experiment':
+                    targetSummaries.append(baseURL+j.get('path')+'?format=json')
+print(str(len(targetSummaries))+' target experiments found')
 
 lineNum=0
 targetLinks=[]
@@ -131,19 +128,23 @@ for line in txtFile:
         urllib.request.urlretrieve(line, path)
     elif lineNum>1:
         targetLinks.append(line)
-print(str(len(targetLinks))+' target fastq files found.')
-
-#EVERYTHING ABOVE IS FINE - DO NOT TOUCH
 
 targetPrefixes=[]
 for i in targetLinks:
     targetPrefixes.append(targetPrefix+i[59:])
 a = [(i, j) for i in targetLinks for j in targetPrefixes]
-print('Beginning target download.')
+print(str(len(targetLinks))+' target fastq files found. Beginning download.')
 with ThreadPool() as pool:
     results=pool.starmap(download, a)
 print('Target download completed. Files saved to '+os.getcwd())
 
+cntlSummaries=[]
+for i in targetSummaries:
+    with urllib.request.urlopen(i) as page:
+        page=json.loads(page.read().decode())
+        cntl=page['possible_controls'][0]['@id']
+        cntlSummaries.append(baseURL+cntl+'?format=json')
+print(str(len(cntlSummaries))+' control experiments found')
 cntlLinks=[]
 for i in cntlSummaries:
     with urllib.request.urlopen(i) as page:
@@ -151,15 +152,12 @@ for i in cntlSummaries:
         for i in page['files']:
             if i.get('file_type')=='fastq':
                 cntlLinks.append(baseURL+i.get('href')+'?format=json')
-print(str(len(cntlLinks))+' control fastq files found.')
 
 cntlPrefixes=[]
 for i in cntlLinks:
     cntlPrefixes.append(cntlPrefix+'.'+i[59:-12])
-
 b = [(i, j) for i in cntlLinks for j in cntlPrefix]
-print('Beginning control download.')
+print(str(len(targetLinks))+' control fastq files found. Beginning download.')
 with ThreadPool() as pool:
     results=pool.starmap(download, b)
 print('Control download completed. Files saved to '+os.getcwd())
-
