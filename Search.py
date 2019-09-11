@@ -37,6 +37,7 @@ parser.add_argument('-t', '--target', nargs='?', default='control', help='Add -t
 parser.add_argument('-w', '--warnings', nargs='?', type=bool, default=False, help='Add -w to filter out experiments with warnings.')
 args=parser.parse_args()
 
+
 baseURL='https://www.encodeproject.org/search/?type=Experiment&status=released'
 if args.target is 'control':
     addOn='&assay_title=Control+ChIP-seq' +'&target.investigated_as=control'+'&target.label=Control' 
@@ -50,22 +51,9 @@ with urllib.request.urlopen(url1+'&format=json') as page:
     errorStr=auditStr(page['facets'][29]['terms'], '&audit.ERROR.category%21=')
     complaintStr=auditStr(page['facets'][30]['terms'], '&audit.NOT_COMPLIANT.category%21=')
     audits=errorStr+complaintStr
-    if args.warnings is not False:
+    if args.warnings is True:
         warningStr=auditStr(page['facets'][31]['terms'],'&audit.WARNING.category%21=')
         audits+=warningStr
-
-#Get Biosample
-if args.biosample is not None:
-    biosample=args.biosample
-else:
-    with urllib.request.urlopen(url1+audits+'&format=json') as page:
-        page=json.loads(page.read().decode())
-        biosamples=page['facets'][11]['terms']
-        print('{:60}{:}'.format('Biosample:','Results:'))
-        for i in biosamples:
-            if i.get('doc_count')>0:
-                print('{:60}{:}'.format(i.get('key'),i.get('doc_count')))
-        biosample=input('Enter Biosample: ')
 
 #Check Biosample
 while True:
@@ -126,6 +114,8 @@ if target is not 'control':
 
 with urllib.request.urlopen(searchURL) as page:
     page=json.loads(page.read().decode())
+    for i in page:
+        print(i)
     downloadURL=page.get('batch_download')
 
 lineNum=0
@@ -140,6 +130,7 @@ for line in txtFile:
         urllib.request.urlretrieve(line, path)
     elif lineNum>1:
         downloadLinks.append(line)
+#print(searchURL)
 
 print(str(len(downloadLinks))+' files found. Beginning download.')
 prefixes=[]
