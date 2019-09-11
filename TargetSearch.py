@@ -15,26 +15,25 @@ def auditStr(auditDict, auditFilter):
             s+=auditFilter+i.get('key').replace(' ','+')
     return s
 
-def exit(inputI):
-    if inputI=='e' or inputI=='E':
-        print('Exiting...')
-        sys.exit()
-
 def CheckURL(url):
     validURL=True
     try:
         urllib.request.urlopen(url)
     except urllib.request.HTTPError:
         validURL=False
-        print('HTTP error')
     return validURL
 
 def outputOptions(argList):
+    def exit(inputI):
+        if inputI=='e' or inputI=='E':
+            print('Exiting...')
+            sys.exit()
     print('{:60}{:}'.format('Options:','Results:'))
     for i in argList:
         if i.get('doc_count')>0:
             print('{:60}{:}'.format(i.get('key'),i.get('doc_count')))
     option=input('Enter your option or press e to exit: ')
+    exit(option)
     return option
 
 def download(link, name):
@@ -69,36 +68,31 @@ if args.biosample is not None:
 else:
     with urllib.request.urlopen(url1) as page:
         page=json.loads(page.read().decode())
-        biosamples=page['facets'][11]['terms']
-        biosample=outputOptions(biosamples).replace(' ','+')
-        exit(biosample)
+        biosample=outputOptions(page['facets'][11]['terms']).replace(' ','+')
 
-while True:
-    url2=searchBase+'&biosample_ontology.term_name='+biosample+addOn+general
+while True: #Check Biosample
+    biosampleAdd='&biosample_ontology.term_name='+biosample+addOn+general
+    url2=searchBase+biosampleAdd
     validBiosample=CheckURL(url2)
     if validBiosample is True:
         print('Valid biosample.')
-        cntlPrefix='cntl.'+biosample
+        cntlPrefix='CNTL.'+biosample
         break
     else:
         print('Invalid biosample.')
         with urllib.request.urlopen(url1) as page:
             page=json.loads(page.read().decode())
-            biosamples=page['facets'][11]['terms']
-            biosample=outputOptions(biosamples)
-            exit(biosample)
+            biosample=outputOptions(page['facets'][11]['terms']).replace(' ','+')
 
 if args.target is not None:
     target=args.target
 else:
     with urllib.request.urlopen(url2) as page:
         page=json.loads(page.read().decode())
-        targets=page['facets'][8]['terms']
-        target=outputOptions(targets).replace(' ','+')
-        exit(target)
+        target=outputOptions(page['facets'][8]['terms']).replace(' ','+')
 
-while True:
-    searchURL=searchBase+'&target.label='+target+addOn+general
+while True: #Check Target
+    searchURL=searchBase+'&target.label='+target+biosampleAdd
     validTarget=CheckURL(searchURL)
     if validTarget is True:
         print('Valid target.')
@@ -108,43 +102,23 @@ while True:
         print('Invalid target.')
         with urllib.request.urlopen(url2) as page:
             page=json.loads(page.read().decode())
-            targets=page['facets'][8]['terms']
-            target=outputOptions(targets)
-            exit(target)
+            target=outputOptions(page['facets'][8]['terms']).replace(' ','+')
 
 targetSummaries=[]
 with urllib.request.urlopen(searchURL) as page:
     page=json.loads(page.read().decode())
-    targetDownloads=page.get('batch_download')
+    targetTxt=page.get('batch_download')
     for i in page['@graph']:
         audit=i.get('audit')
-        for j in audit.get('INTERNAL_ACTION'):
-            if j.get('name')=='audit_experiment':
-                targetSummaries.append(baseURL+j.get('path')+'?format=json')
+        if type(audit.get('INTERNAL_ACTION')) is list:
+            for j in audit.get('INTERNAL_ACTION'):
+                if j.get('name')=='audit_experiment':
+                    targetSummaries.append(baseURL+j.get('path')+'?format=json')
 print(str(len(targetSummaries))+' target experiments found')
-
-cntlSummaries=[]
-for i in targetSummaries:
-    if CheckURL(i) is False:
-        print('Error with target experiment url.')
-    else:
-        with urllib.request.urlopen(i) as page:
-            page=json.loads(page.read().decode())
-            cntl=page['possible_controls'][0]['@id']
-            cntlSummaries.append(baseURL+cntl+'?format=json')
-print(str(len(cntlSummaries))+' control experiments found')
-
-cntlLinks=[]
-for i in cntlSummaries:
-    with urllib.request.urlopen(i) as page:
-        page=json.loads(page.read().decode())
-        for i in page['files']:
-            if i.get('file_type')=='fastq':
-                cntlLinks.append(baseURL+i.get('href')+'?format=json')
 
 lineNum=0
 targetLinks=[]
-txtFile=urllib.request.urlopen(targetDownloads)
+txtFile=urllib.request.urlopen(targetTxt)
 for line in txtFile:
     line=str(line.strip())
     line=line[2:-1]
@@ -155,8 +129,6 @@ for line in txtFile:
     elif lineNum>1:
         targetLinks.append(line)
 
-print(str(len(targetLinks))+' target fastq files found. Beginning download.')
-
 targetPrefixes=[]
 for i in targetLinks:
     targetPrefixes.append(targetPrefix+i[59:])
@@ -166,9 +138,24 @@ with ThreadPool() as pool:
     results=pool.starmap(download, a)
 print('Target download completed. Files saved to '+os.getcwd())
 
+cntlSummaries=[]
+for i in targetSummaries:
+    with urllib.request.urlopen(i) as page:
+        page=json.loads(page.read().decode())
+        cntl=page['possible_controls'][0]['@id']
+        cntlSummaries.append(baseURL+cntl+'?format=json')
+print(str(len(cntlSummaries))+' control experiments found')
+cntlLinks=[]
+for i in cntlSummaries:
+    with urllib.request.urlopen(i) as page:
+        page=json.loads(page.read().decode())
+        for i in page['files']:
+            if i.get('file_type')=='fastq':
+                cntlLinks.append(baseURL+i.get('href')+'?format=json')
+
 cntlPrefixes=[]
 for i in cntlLinks:
-    cntlPrefixes.append(cntlPrefix+i[59:-12])
+    cntlPrefixes.append(cntlPrefix+'.'+i[59:-12])
 b = [(i, j) for i in cntlLinks for j in cntlPrefix]
 print(str(len(targetLinks))+' control fastq files found. Beginning download.')
 with ThreadPool() as pool:
