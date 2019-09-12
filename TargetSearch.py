@@ -140,6 +140,7 @@ for i in targetLinks:
     targetPrefixes.append(targetPrefix+i[59:])
 a = [(i, j) for i in targetLinks for j in targetPrefixes]
 print('Beginning target download.')
+
 with ThreadPool() as pool:
     results=pool.starmap(download, a)
 print('Target download completed. Files saved to '+os.getcwd())
@@ -157,8 +158,9 @@ cntlPrefixes=[]
 for i in cntlLinks:
     cntlPrefixes.append(cntlPrefix+'.'+i[59:-12])
 
-b = [(i, j) for i in cntlLinks for j in cntlPrefix]
+b = [(i, j) for i in cntlLinks for j in cntlPrefixes]
 print('Beginning control download.')
+
 with ThreadPool() as pool:
     results=pool.starmap(download, b)
 print('Control download completed. Files saved to '+os.getcwd())
