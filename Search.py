@@ -27,6 +27,19 @@ def auditStr(auditDict, auditFilter):
             s+=auditFilter+i.get('key').replace(' ','+')
     return s
 
+def outputOptions(argList):
+    def exit(inputI):
+        if inputI=='e' or inputI=='E':
+            print('Exiting...')
+            sys.exit()
+    print('{:60}{:}'.format('Options:','Results:'))
+    for i in argList:
+        if i.get('doc_count')>0:
+            print('{:60}{:}'.format(i.get('key'),i.get('doc_count')))
+    option=input('Enter your option or press e to exit: ')
+    exit(option)
+    return option
+
 def download(link, name):
     path=os.path.join(os.getcwd(), name)
     urllib.request.urlretrieve(link, path)
@@ -55,9 +68,16 @@ with urllib.request.urlopen(url1+'&format=json') as page:
         warningStr=auditStr(page['facets'][31]['terms'],'&audit.WARNING.category%21=')
         audits+=warningStr
 
+#Assign Biosample
+if args.biosample is not None:
+    biosample=args.biosample
+else:
+    with urllib.request.urlopen(url1+'&format=json') as page:
+        page=json.loads(page.read().decode())
+        biosample=outputOptions(page['facets'][11]['terms']).replace(' ','+')
+
 #Check Biosample
 while True:
-    biosample=biosample.replace(' ','+')
     url2=baseURL+'&biosample_ontology.term_name='+biosample+addOn+general+audits
     validBiosample=CheckURL(url2)
     if validBiosample is True:
@@ -67,13 +87,8 @@ while True:
         print('Invalid biosample.')
         with urllib.request.urlopen(url1+'&format=json') as page:
             page=json.loads(page.read().decode())
-            biosamples=page['facets'][11]['terms']
-            print('{:60}{:}'.format('Biosample:','Results:'))
-            for i in biosamples:
-                if i.get('doc_count')>0:
-                    print('{:60}{:}'.format(i.get('key'),i.get('doc_count')))
-        biosample=input('Enter New Biosample: ')
-
+            biosample=outputOptions(page['facets'][11]['terms']).replace(' ','+')
+            
 if args.target is 'control':
     target=args.target
     searchURL=url2+'&format=json'
@@ -82,19 +97,11 @@ else:
     with urllib.request.urlopen(url2+'&format=json') as page:
         page=json.loads(page.read().decode())
         targets=page['facets'][8]['terms']
-        vaildTarget=False
         if args.target is not None:
             target=args.target
         else:
-            print('{:60}{:}'.format('Target:','Results:'))
-            for i in targets:
-                if i.get('doc_count')>0:
-                    print('{:60}{:}'.format(i.get('key'),i.get('doc_count')))
-            target=input('Enter Target: ')
-
-if target is not 'control':
+            target=outputOptions(page['facets'][8]['terms']).replace(' ','+')
     while True:
-        target=target.replace(' ','+')
         searchURL=baseURL+'&target.label='+target+addOn+general+audits+'&format=json'
         validTarget=CheckURL(searchURL)
         if validTarget is True:
@@ -105,18 +112,11 @@ if target is not 'control':
             print('Invalid target.')
             with urllib.request.urlopen(searchURL) as page:
                 page=json.loads(page.read().decode())
-                targets=page['facets'][8]['terms']
-                print('{:60}{:}'.format('Target:','Results:'))
-                for i in targets:
-                    if i.get('doc_count')>0:
-                        print('{:60}{:}'.format(i.get('key'),i.get('doc_count')))
-            target=input('Enter New Target: ')
-
+                target=outputOptions(page['facets'][8]['terms']).replace(' ','+')
 with urllib.request.urlopen(searchURL) as page:
     page=json.loads(page.read().decode())
-    for i in page:
-        print(i)
     downloadURL=page.get('batch_download')
+
 
 lineNum=0
 downloadLinks=[]
@@ -130,7 +130,6 @@ for line in txtFile:
         urllib.request.urlretrieve(line, path)
     elif lineNum>1:
         downloadLinks.append(line)
-#print(searchURL)
 
 print(str(len(downloadLinks))+' files found. Beginning download.')
 prefixes=[]
@@ -141,3 +140,4 @@ a = [(i, j) for i in downloadLinks for j in prefixes]
 with ThreadPool() as pool:
     results=pool.starmap(download, a)
 print('Download completed. Files saved to '+os.getcwd())
+
