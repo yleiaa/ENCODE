@@ -141,7 +141,7 @@ for exp in targetPgURLs:
                 tLinks.append(baseURL+j.get('href'))
                 tfullPath=os.path.join(path, j.get('href')[30:])
                 tFullPaths.append(tfullPath)
-    '''
+
 a = [(i, j) for i in tLinks for j in tFullPaths]
 print('Beginning target download.')
 with ThreadPool() as pool:
@@ -162,9 +162,6 @@ with ThreadPool() as pool:
     results=pool.starmap(download, b)
 print('Control download completed.')
 
-
-
-'''
 
 
 
