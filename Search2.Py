@@ -125,7 +125,7 @@ tFullPaths=[]
 cntlPgURLs=[]
 cFullPaths=[]
 for exp in targetPgURLs:
-    path=os.path.join(os.getcwd(), biosample+'.'+target+'.'+exp[42:-13])
+    path=os.path.join(directory, target+'.'+biosample+'.'+exp[42:-13])
     try:
         os.mkdir(path)
     except OSError:
@@ -136,10 +136,11 @@ for exp in targetPgURLs:
         cntl=page['possible_controls'][0]['@id']
         cntlPgURLs.append(baseURL+cntl+'?format=json')
         cfullPath=os.path.join(path, 'CNTL.'+biosample+'.'+cntl[13:-1]+'.fastq.gz')
+        cFullPaths.append(cfullPath)
         for j in page['files']:
             if j.get('file_type')=='fastq':
                 tLinks.append(baseURL+j.get('href'))
-                tfullPath=os.path.join(path, j.get('href')[30:])
+                tfullPath=os.path.join(path, target+'.'+biosample+'.'+j.get('href')[30:])
                 tFullPaths.append(tfullPath)
 
 a = [(i, j) for i in tLinks for j in tFullPaths]
@@ -161,7 +162,6 @@ print('Beginning control download.')
 with ThreadPool() as pool:
     results=pool.starmap(download, b)
 print('Control download completed.')
-
 
 
 
