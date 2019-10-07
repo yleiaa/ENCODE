@@ -1,8 +1,9 @@
 # ENCODE
-Searches for experiments on the encode website give a biosample term name and an optional target 
-assay if looking for non-control experiments. Then, pulls fastq files for experiment results
-and downloads them in parallel to the programs current diectory.
+Searches for experiments on the encode website give a target and biosample term name. Then, pulls fastq files for target experiments and their matching controls and downloads them in parallel to the programs current diectory.
 
-Command line example for target:
+If a biosample or target is not entered, it will display a list of options for each.
 
-`./Search.py K562 -t`
+Command line example:
+
+`./Search.py K562 
+
