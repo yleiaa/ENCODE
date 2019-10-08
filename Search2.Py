@@ -1,3 +1,4 @@
+  
 #!/usr/bin/env python3
 import os
 import sys
@@ -117,8 +118,19 @@ while True: #Check Target
 targetPgURLs=[]
 with urllib.request.urlopen(searchURL) as page:
     page=json.loads(page.read().decode())
+    targetTxt=page.get('batch_download')
     for i in page.get('@graph'):
         targetPgURLs.append(baseURL+i.get('@id')+'?format=json')
+
+lineNum=0
+txtFile=urllib.request.urlopen(targetTxt)
+for line in txtFile:
+    line=str(line.strip())
+    line=line[2:-1]
+    lineNum+=1
+    if lineNum==1:
+        mPath=os.path.join(directory, target+'.'+biosample+'.metadata')
+        urllib.request.urlretrieve(line, mPath)
 
 tLinks=[]
 tFullPaths=[]
@@ -133,6 +145,7 @@ for exp in targetPgURLs:
         sys.exit()
     with urllib.request.urlopen(exp) as page:
         page=json.loads(page.read().decode())
+
         cntl=page['possible_controls'][0]['@id']
         cntlPgURLs.append(baseURL+cntl+'?format=json')
         cfullPath=os.path.join(path, 'CNTL.'+biosample+'.'+cntl[13:-1]+'.fastq.gz')
@@ -142,7 +155,6 @@ for exp in targetPgURLs:
                 tLinks.append(baseURL+j.get('href'))
                 tfullPath=os.path.join(path, target+'.'+biosample+'.'+j.get('href')[30:])
                 tFullPaths.append(tfullPath)
-
 a = [(i, j) for i in tLinks for j in tFullPaths]
 print('Beginning target download.')
 with ThreadPool() as pool:
@@ -162,10 +174,3 @@ print('Beginning control download.')
 with ThreadPool() as pool:
     results=pool.starmap(download, b)
 print('Control download completed.')
-
-
-
-
-
-
-
