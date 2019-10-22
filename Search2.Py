@@ -21,7 +21,7 @@ def auditStr(auditDict, auditFilter):
         if i.get('doc_count')>0:
             s+=auditFilter+i.get('key').replace(' ','+')
     return s
-    
+
 def outputOptions(argList):
     print('{:60}{:}'.format('Options:','Results:'))
     for i in argList:
@@ -32,7 +32,7 @@ def outputOptions(argList):
         print('Exiting.')
         sys.exit()
     return option.replace(' ','+')
-
+    
 def CheckURL(url):
     validURL=True
     try:
@@ -44,11 +44,11 @@ def CheckURL(url):
 def download(link, path):
     urllib.request.urlretrieve(link, path)
 
-parser = argparse.ArgumentParser(description='Searches on the Encode website for targets & matching  controls.')
+parser = argparse.ArgumentParser(description='Searches on the Encode website for targets & matching controls.')
 parser.add_argument('biosample', nargs='?', help='Biosample/cell name.')
 parser.add_argument('target', nargs='?', help='Name of target protein.')
-parser.add_argument('-d', '--directory', nargs='?', help='Enter a path to a directory you want the files saved to (default is current directory).')
 parser.add_argument('-w', '--warnings', nargs='?', type=bool, default=False, help='Add -w to filter out experiments with warnings.')
+parser.add_argument('-d', '--directory', nargs='?', help='Enter a path to a directory you want the files saved to (default is current directory).')
 args=parser.parse_args()
 
 if args.directory is None:
@@ -64,12 +64,13 @@ auditURL=searchBase+addOn+general+'&format=json'
 
 with urllib.request.urlopen(auditURL) as page:
     page=json.loads(page.read().decode())
-    errorStr=auditStr(page['facets'][29]['terms'], '&audit.ERROR.category%21=')
-    complaintStr=auditStr(page['facets'][30]['terms'], '&audit.NOT_COMPLIANT.category%21=')
+    errorStr=auditStr(page['facets'][28]['terms'], '&audit.ERROR.category%21=')
+    complaintStr=auditStr(page['facets'][29]['terms'], '&audit.NOT_COMPLIANT.category%21=')
     audits=errorStr+complaintStr
     if args.warnings is not False:
-        warningStr=auditStr(page['facets'][31]['terms'],'&audit.WARNING.category%21=')
+        warningStr=auditStr(page['facets'][30]['terms'],'&audit.WARNING.category%21=')
         audits+=warningStr
+
 general+=audits+'&format=json'
 url1=searchBase+addOn+general
 
@@ -117,48 +118,36 @@ while True: #Check Target
 targetPgURLs=[]
 with urllib.request.urlopen(searchURL) as page:
     page=json.loads(page.read().decode())
-    targetTxt=page.get('batch_download')
     for i in page.get('@graph'):
         targetPgURLs.append(baseURL+i.get('@id')+'?format=json')
 
-lineNum=0
-txtFile=urllib.request.urlopen(targetTxt)
-for line in txtFile:
-    line=str(line.strip())
-    line=line[2:-1]
-    lineNum+=1
-    if lineNum==1:
-        mPath=os.path.join(directory, target+'.'+biosample+'.metadata')
-        urllib.request.urlretrieve(line, mPath)
-
 tLinks=[]
 tFullPaths=[]
+n=0
 cntlPgURLs=[]
 cFullPaths=[]
-for exp in targetPgURLs:
-    path=os.path.join(directory, target+'.'+biosample+'.'+exp[42:-13])
-    try:
-        os.mkdir(path)
-    except OSError:
-        print('Error creating a new folder.')
-        sys.exit()
-    with urllib.request.urlopen(exp) as page:
-        page=json.loads(page.read().decode())
-
-        cntl=page['possible_controls'][0]['@id']
-        cntlPgURLs.append(baseURL+cntl+'?format=json')
-        cfullPath=os.path.join(path, 'CNTL.'+biosample+'.'+cntl[13:-1]+'.fastq.gz')
-        cFullPaths.append(cfullPath)
-        for j in page['files']:
-            if j.get('file_type')=='fastq':
-                tLinks.append(baseURL+j.get('href'))
-                tfullPath=os.path.join(path, target+'.'+biosample+'.'+j.get('href')[30:])
-                tFullPaths.append(tfullPath)
-a = [(i, j) for i in tLinks for j in tFullPaths]
-print('Beginning target download.')
-with ThreadPool() as pool:
-    results=pool.starmap(download, a)
-print('Target download completed.')
+for i in targetPgURLs:
+        n+=1
+        path=os.path.join(directory, target+'.'+str(n)+'.'+biosample+'.'+i[42:-13])
+        '''
+        try:
+            os.mkdir(path)
+        except OSError:
+            print('Error creating a new folder.')
+            sys.exit()
+        '''
+        with urllib.request.urlopen(i) as page:
+            page=json.loads(page.read().decode())      
+            for j in page['files']:
+                dwnldAdd=j.get('href')
+                if dwnldAdd[42:]=='fastq.gz':
+                    tLinks.append(baseURL+dwnldAdd)
+                    tfullPath=os.path.join(path, target+'.'+biosample+'.'+dwnldAdd[30:])
+                    tFullPaths.append(tfullPath)
+            cntl=page['possible_controls'][0]['@id']
+            cntlPgURLs.append(baseURL+cntl+'?format=json')
+            cfullPath=os.path.join(path, 'CNTL.'+biosample+'.'+cntl[13:-1]+'.fastq.gz')
+            cFullPaths.append(cfullPath)
 
 cLinks=[]
 for i in cntlPgURLs:
@@ -166,10 +155,18 @@ for i in cntlPgURLs:
         page=json.loads(page.read().decode())
         for i in page['files']:
             if i.get('file_type')=='fastq':
-                cLinks.append(baseURL+i.get('href')+'?format=json')
+                cLinks.append(baseURL+i.get('href'))
+
+a = [(i, j) for i in tLinks for j in tFullPaths]
+print('Beginning target download.')
+with ThreadPool() as pool:
+    results=pool.starmap(download, a)
+print('Target download completed.')
 
 b = [(i, j) for i in cLinks for j in cFullPaths]
 print('Beginning control download.')
 with ThreadPool() as pool:
     results=pool.starmap(download, b)
 print('Control download completed.')
+
+
