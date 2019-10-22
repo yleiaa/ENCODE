@@ -129,13 +129,11 @@ cFullPaths=[]
 for i in targetPgURLs:
         n+=1
         path=os.path.join(directory, target+'.'+str(n)+'.'+biosample+'.'+i[42:-13])
-        '''
         try:
             os.mkdir(path)
         except OSError:
             print('Error creating a new folder.')
             sys.exit()
-        '''
         with urllib.request.urlopen(i) as page:
             page=json.loads(page.read().decode())      
             for j in page['files']:
