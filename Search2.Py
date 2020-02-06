@@ -42,13 +42,16 @@ def CheckURL(url):
     return validURL
 
 def download(link, path):
-    urllib.request.urlretrieve(link, path)
+    try:
+        urllib.request.urlretrieve(link, path)
+    except urllib.request.ContentTooShortError:
+        sys.exit()
 
 parser = argparse.ArgumentParser(description='Searches on the Encode website for targets & matching controls.')
 parser.add_argument('biosample', nargs='?', help='Biosample/cell name.')
 parser.add_argument('target', nargs='?', help='Name of target protein.')
 parser.add_argument('-w', '--warnings', nargs='?', type=bool, default=False, help='Add -w to filter out experiments with warnings.')
-parser.add_argument('-d', '--directory', nargs='?', help='Enter a path to a directory you want the files saved to (default is current directory).')
+parser.add_argument('-d', '--directory', nargs='?', help='Enter a path to a directory you want the ßiles saved to (default is current directory).')
 args=parser.parse_args()
 
 if args.directory is None:
@@ -120,7 +123,7 @@ with urllib.request.urlopen(searchURL) as page:
     page=json.loads(page.read().decode())
     for i in page.get('@graph'):
         targetPgURLs.append(baseURL+i.get('@id')+'?format=json')
-
+        
 tLinks=[]
 tFullPaths=[]
 n=0
@@ -137,16 +140,15 @@ for i in targetPgURLs:
         with urllib.request.urlopen(i) as page:
             page=json.loads(page.read().decode())      
             for j in page['files']:
-                dwnldAdd=j.get('href')
-                if dwnldAdd[42:]=='fastq.gz':
-                    tLinks.append(baseURL+dwnldAdd)
-                    tfullPath=os.path.join(path, target+'.'+biosample+'.'+dwnldAdd[30:])
+                if j.get('file_type')=='fastq':
+                    tLinks.append(baseURL+j.get('href'))
+                    tfullPath=os.path.join(path, target+'.'+biosample+'.'+j.get('href')[30:])
                     tFullPaths.append(tfullPath)
             cntl=page['possible_controls'][0]['@id']
             cntlPgURLs.append(baseURL+cntl+'?format=json')
             cfullPath=os.path.join(path, 'CNTL.'+biosample+'.'+cntl[13:-1]+'.fastq.gz')
             cFullPaths.append(cfullPath)
-
+            
 cLinks=[]
 for i in cntlPgURLs:
     with urllib.request.urlopen(i) as page:
@@ -166,5 +168,3 @@ print('Beginning control download.')
 with ThreadPool() as pool:
     results=pool.starmap(download, b)
 print('Control download completed.')
-
-

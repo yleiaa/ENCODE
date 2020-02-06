@@ -32,7 +32,7 @@ def outputOptions(argList):
         print('Exiting.')
         sys.exit()
     return option.replace(' ','+')
-    
+
 def CheckURL(url):
     validURL=True
     try:
@@ -42,8 +42,12 @@ def CheckURL(url):
     return validURL
 
 def download(link, path):
-    urllib.request.urlretrieve(link, path)
+    try:
+        urllib.request.urlretrieve(link, path)
+    except urllib.request.ContentTooShortError:
+        sys.exit()
 
+    
 parser = argparse.ArgumentParser(description='Searches on the Encode website for targets & matching controls.')
 parser.add_argument('biosample', nargs='?', help='Biosample/cell name.')
 parser.add_argument('target', nargs='?', help='Name of target protein.')
@@ -113,21 +117,3 @@ while True: #Check Target
             page=json.loads(page.read().decode())
             target=outputOptions(page['facets'][8]['terms'])
 
-#EVERYTHING ABOVE SHOULD B FINE
-#searchURL=search page for all experiments w/ that biosample & target 
-#Ex. for A549 & EP300 there's 18 experiments
-
-targetPgURLs=[]
-with urllib.request.urlopen(searchURL) as page:
-    page=json.loads(page.read().decode())
-    for i in page.get('@graph'):
-        targetPgURLs.append(baseURL+i.get('@id')+'?format=json')
-
-#targetPgURLs=the pages for each of the individual experiments
-
-if len(targetPgURLs)>2:
-    print(str(len(targetPgURLs))+' experiments found for this target and biosample')
-    batchAmt=len(targetPgURLs)
-    for i in range(batchAmt):
-        print(i+1)
-    
