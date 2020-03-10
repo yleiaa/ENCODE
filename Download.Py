@@ -107,6 +107,23 @@ def checkTarget(target, url2):
                 target=enterOption()
     return target, targetURL
 
+def findEnds(targetURL):
+    SE = 0
+    PE = 0
+    with urllib.request.urlopen(targetURL+'&format=json') as page:
+        page=json.loads(page.read().decode())
+        for i in page['facets']:
+            for j in i.get('terms'):
+                k=j.get('key')
+                if j.get('key') =='single-ended':
+                    print(str(j.get('doc_count'))+' '+j.get('key')+' results found.')
+                    SE += (j.get('doc_count'))
+                if j.get('key') =='paired-ended':
+                    print(str(j.get('doc_count'))+' '+j.get('key')+' results found.')
+                    PE += j.get('doc_count')
+    return SE, PE
+                        
+
 def main():
 
     args = parseArguments()
@@ -124,10 +141,7 @@ def main():
     biosample, url2 = checkBiosample(args.biosample, base)
     target, targetURL = checkTarget(args.target, url2)
 
-    directories=[]
-    with urllib.request.urlopen(targetURL+'&format=json') as page:
-            page=json.loads(page.read().decode())
-
+    SE, PE = (findEnds(targetURL))
 
 if __name__ == '__main__':
     main()
