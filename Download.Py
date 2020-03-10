@@ -2,6 +2,7 @@
 import os
 import sys
 import json
+import queue
 import string
 import os.path
 import argparse
@@ -21,7 +22,7 @@ def auditStr(auditDict, auditFilter):
         if i.get('doc_count')>0:
             s+=auditFilter+i.get('key').replace(' ','+')
     return s
-
+    
 def outputOptions(argList):
     print('{:60}{:}'.format('Options:','Results:'))
     for i in argList:
@@ -41,14 +42,11 @@ def CheckURL(url):
         validURL=False
     return validURL
 
-def download(link, path):
-    urllib.request.urlretrieve(link, path)
-
 parser = argparse.ArgumentParser(description='Searches on the Encode website for targets & matching controls.')
 parser.add_argument('biosample', nargs='?', help='Biosample/cell name.')
 parser.add_argument('target', nargs='?', help='Name of target protein.')
 parser.add_argument('-w', '--warnings', nargs='?', type=bool, default=False, help='Add -w to filter out experiments with warnings.')
-parser.add_argument('-d', '--directory', nargs='?', help='Enter a path to a directory you want the files saved to (default is current directory).')
+parser.add_argument('-d', '--directory', nargs='?', help='Enter a path to a directory you want the ßiles saved to (default is current directory).')
 args=parser.parse_args()
 
 if args.directory is None:
@@ -56,13 +54,9 @@ if args.directory is None:
 else:
     directory=pathCheck(args.directory)
 
-baseURL='https://www.encodeproject.org'
-searchBase='https://www.encodeproject.org/search/?type=Experiment&status=released'
-addOn='&target.label%21=Control'+'&assay_title=TF+ChIP-seq'
-general='&files.file_type=fastq'
-auditURL=searchBase+addOn+general+'&format=json'
+base='https://www.encodeproject.org/search/?type=Experiment&status=released&target.label%21=Control&assay_title=TF+ChIP-seq&files.file_type=fastq'
 
-with urllib.request.urlopen(auditURL) as page:
+with urllib.request.urlopen(base+'&format=json') as page:
     page=json.loads(page.read().decode())
     errorStr=auditStr(page['facets'][28]['terms'], '&audit.ERROR.category%21=')
     complaintStr=auditStr(page['facets'][29]['terms'], '&audit.NOT_COMPLIANT.category%21=')
@@ -71,63 +65,55 @@ with urllib.request.urlopen(auditURL) as page:
         warningStr=auditStr(page['facets'][30]['terms'],'&audit.WARNING.category%21=')
         audits+=warningStr
 
-general+=audits+'&format=json'
-url1=searchBase+addOn+general
+base+=audits
 
 if args.biosample is not None:
     biosample=args.biosample
 else:
-    with urllib.request.urlopen(url1) as page:
+    with urllib.request.urlopen(base+'&format=json') as page:
         page=json.loads(page.read().decode())
         biosample=outputOptions(page['facets'][11]['terms'])
 
 while True: #Check Biosample
-    biosampleAdd='&biosample_ontology.term_name='+biosample+addOn+general
-    url2=searchBase+biosampleAdd
-    validBiosample=CheckURL(url2)
+    biosampleURL=base+'&biosample_ontology.term_name='+biosample
+    validBiosample=CheckURL(biosampleURL)
     if validBiosample is True:
-        cntlPrefix='CNTL.'+biosample
         break
     else:
         print('Invalid biosample.')
-        with urllib.request.urlopen(url1) as page:
+        with urllib.request.urlopen(base+'&format=json') as page:
             page=json.loads(page.read().decode())
             biosample=outputOptions(page['facets'][11]['terms'])
 
 if args.target is not None:
     target=args.target
 else:
-    with urllib.request.urlopen(url2) as page:
+    with urllib.request.urlopen(biosampleURL+'&format=json') as page:
         page=json.loads(page.read().decode())
         target=outputOptions(page['facets'][8]['terms'])
 
 while True: #Check Target
-    searchURL=searchBase+'&target.label='+target+biosampleAdd
-    validTarget=CheckURL(searchURL)
+    targetURL=biosampleURL+'&target.label='+target
+    validTarget=CheckURL(targetURL)
     if validTarget is True:
-        targetPrefix=target+'.'+biosample+'.'
         break
     else:
         print('Invalid target.')
-        with urllib.request.urlopen(url2) as page:
+        with urllib.request.urlopen(biosampleURL+'&format=json') as page:
             page=json.loads(page.read().decode())
             target=outputOptions(page['facets'][8]['terms'])
 
-#EVERYTHING ABOVE SHOULD B FINE
-#searchURL=search page for all experiments w/ that biosample & target 
-#Ex. for A549 & EP300 there's 18 experiments
+directories=[]
+with urllib.request.urlopen(targetURL+'&format=json') as page:
+        page=json.loads(page.read().decode())
+        n=0
+        for i in page['facets'][17]['terms']:
+            if i['doc_count'] > 0:
+                #make directory
+                #change search url
+                print(str(i['doc_count'])+' '+i['key']+' result(s) found')
+                print(directory+'/'+i['key']+'/')
+                #directories.append(directory+i['key'])
 
-targetPgURLs=[]
-with urllib.request.urlopen(searchURL) as page:
-    page=json.loads(page.read().decode())
-    for i in page.get('@graph'):
-        targetPgURLs.append(baseURL+i.get('@id')+'?format=json')
 
-#targetPgURLs=the pages for each of the individual experiments
 
-if len(targetPgURLs)>2:
-    print(str(len(targetPgURLs))+' experiments found for this target and biosample')
-    batchAmt=len(targetPgURLs)
-    for i in range(batchAmt):
-        print(i+1)
-    

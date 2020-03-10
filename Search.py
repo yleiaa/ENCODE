@@ -2,6 +2,7 @@
 import os
 import sys
 import json
+import queue
 import string
 import os.path
 import argparse
@@ -32,7 +33,7 @@ def outputOptions(argList):
         print('Exiting.')
         sys.exit()
     return option.replace(' ','+')
-
+    
 def CheckURL(url):
     validURL=True
     try:
@@ -47,12 +48,11 @@ def download(link, path):
     except urllib.request.ContentTooShortError:
         sys.exit()
 
-    
 parser = argparse.ArgumentParser(description='Searches on the Encode website for targets & matching controls.')
 parser.add_argument('biosample', nargs='?', help='Biosample/cell name.')
 parser.add_argument('target', nargs='?', help='Name of target protein.')
 parser.add_argument('-w', '--warnings', nargs='?', type=bool, default=False, help='Add -w to filter out experiments with warnings.')
-parser.add_argument('-d', '--directory', nargs='?', help='Enter a path to a directory you want the files saved to (default is current directory).')
+parser.add_argument('-d', '--directory', nargs='?', help='Enter a path to a directory you want the ßiles saved to (default is current directory).')
 args=parser.parse_args()
 
 if args.directory is None:
@@ -97,7 +97,7 @@ while True: #Check Biosample
         with urllib.request.urlopen(url1) as page:
             page=json.loads(page.read().decode())
             biosample=outputOptions(page['facets'][11]['terms'])
-
+    
 if args.target is not None:
     target=args.target
 else:
@@ -106,8 +106,8 @@ else:
         target=outputOptions(page['facets'][8]['terms'])
 
 while True: #Check Target
-    searchURL=searchBase+'&target.label='+target+biosampleAdd
-    validTarget=CheckURL(searchURL)
+    url3=searchBase+'&target.label='+target+biosampleAdd
+    validTarget=CheckURL(url3)
     if validTarget is True:
         targetPrefix=target+'.'+biosample+'.'
         break
@@ -117,3 +117,14 @@ while True: #Check Target
             page=json.loads(page.read().decode())
             target=outputOptions(page['facets'][8]['terms'])
 
+directories=[]
+with urllib.request.urlopen(url3) as page:
+        page=json.loads(page.read().decode())
+        n=0
+        for i in page['facets'][18]['terms']:
+            if i['doc_count'] > 0:
+                #make directory
+                #change search url
+                print(str(i['doc_count'])+' '+i['key']+' result(s) found')
+                print(directory+'/'+i['key']+'/')
+                #directories.append(directory+i['key'])
