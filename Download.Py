@@ -52,53 +52,53 @@ def parseArguments():
 
 args = parseArguments()
 
+def main():
+    if args.directory is None:
+        directory=os.getcwd()
+    else:
+        directory=pathCheck(args.directory)
 
-if args.directory is None:
-    directory=os.getcwd()
-else:
-    directory=pathCheck(args.directory)
+    base='https://www.encodeproject.org/search/?type=Experiment&status=released&target.label%21=Control&assay_title=TF+ChIP-seq&files.file_type=fastq'
 
-base='https://www.encodeproject.org/search/?type=Experiment&status=released&target.label%21=Control&assay_title=TF+ChIP-seq&files.file_type=fastq'
-
-with urllib.request.urlopen(base+'&format=json') as page:
-    page=json.loads(page.read().decode())
-    errorStr=auditStr(page['facets'][28]['terms'], '&audit.ERROR.category%21=')
-    complaintStr=auditStr(page['facets'][29]['terms'], '&audit.NOT_COMPLIANT.category%21=')
-    audits=errorStr+complaintStr
-    if args.warnings is not False:
-        warningStr=auditStr(page['facets'][30]['terms'],'&audit.WARNING.category%21=')
-        audits+=warningStr
-
-base+=audits
-
-if args.biosample is not None:
-    biosample=args.biosample
-else:
     with urllib.request.urlopen(base+'&format=json') as page:
         page=json.loads(page.read().decode())
-        biosample=outputOptions(page['facets'][11]['terms'])
+        errorStr=auditStr(page['facets'][28]['terms'], '&audit.ERROR.category%21=')
+        complaintStr=auditStr(page['facets'][29]['terms'], '&audit.NOT_COMPLIANT.category%21=')
+        audits=errorStr+complaintStr
+        if args.warnings is not False:
+            warningStr=auditStr(page['facets'][30]['terms'],'&audit.WARNING.category%21=')
+            audits+=warningStr
 
-while True: #Check Biosample
-    biosampleURL=base+'&biosample_ontology.term_name='+biosample
-    validBiosample=CheckURL(biosampleURL)
-    if validBiosample is True:
-        break
+    base+=audits
+
+    if args.biosample is not None:
+        biosample=args.biosample
     else:
-        print('Invalid biosample.')
         with urllib.request.urlopen(base+'&format=json') as page:
             page=json.loads(page.read().decode())
             biosample=outputOptions(page['facets'][11]['terms'])
 
-if args.target is not None:
-    target=args.target
-else:
-    with urllib.request.urlopen(biosampleURL+'&format=json') as page:
-        page=json.loads(page.read().decode())
-        target=outputOptions(page['facets'][8]['terms'])
+    while True: #Check Biosample
+        biosampleURL=base+'&biosample_ontology.term_name='+biosample
+        validBiosample=CheckURL(biosampleURL)
+        if validBiosample is True:
+            break
+        else:
+            print('Invalid biosample.')
+            with urllib.request.urlopen(base+'&format=json') as page:
+                page=json.loads(page.read().decode())
+                biosample=outputOptions(page['facets'][11]['terms'])
 
-while True: #Check Target
-    targetURL=biosampleURL+'&target.label='+target
-    validTarget=CheckURL(targetURL)
+    if args.target is not None:
+        target=args.target
+    else:
+        with urllib.request.urlopen(biosampleURL+'&format=json') as page:
+            page=json.loads(page.read().decode())
+            target=outputOptions(page['facets'][8]['terms'])
+
+    while True: #Check Target
+        targetURL=biosampleURL+'&target.label='+target
+        validTarget=CheckURL(targetURL)
     if validTarget is True:
         break
     else:
@@ -107,17 +107,19 @@ while True: #Check Target
             page=json.loads(page.read().decode())
             target=outputOptions(page['facets'][8]['terms'])
 
-directories=[]
-with urllib.request.urlopen(targetURL+'&format=json') as page:
-        page=json.loads(page.read().decode())
-        n=0
-        for i in page['facets'][17]['terms']:
-            if i['doc_count'] > 0:
-                #make directory
-                #change search url
-                print(str(i['doc_count'])+' '+i['key']+' result(s) found')
-                print(directory+'/'+i['key']+'/')
-                #directories.append(directory+i['key'])
+    directories=[]
+    with urllib.request.urlopen(targetURL+'&format=json') as page:
+            page=json.loads(page.read().decode())
+            n=0
+            for i in page['facets'][17]['terms']:
+                if i['doc_count'] > 0:
+                    #make directory
+                    #change search url
+                    print(str(i['doc_count'])+' '+i['key']+' result(s) found')
+                    print(directory+'/'+i['key']+'/')
+                    #directories.append(directory+i['key'])
 
+if __name__ == '__main__':
+    main()
 
 
