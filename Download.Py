@@ -42,12 +42,14 @@ def CheckURL(url):
         validURL=False
     return validURL
 
-parser = argparse.ArgumentParser(description='Searches on the Encode website for targets & matching controls.')
-parser.add_argument('biosample', nargs='?', help='Biosample/cell name.')
-parser.add_argument('target', nargs='?', help='Name of target protein.')
-parser.add_argument('-w', '--warnings', nargs='?', type=bool, default=False, help='Add -w to filter out experiments with warnings.')
-parser.add_argument('-d', '--directory', nargs='?', help='Enter a path to a directory you want the ßiles saved to (default is current directory).')
-args=parser.parse_args()
+def parseArguments():
+    parser = argparse.ArgumentParser(description='Searches on the Encode website for targets & matching controls.')
+    parser.add_argument('biosample', nargs='?', help='Biosample/cell name.')
+    parser.add_argument('target', nargs='?', help='Name of target protein.')
+    parser.add_argument('-w', '--warnings', nargs='?', type=bool, default=False, help='Add -w to filter out experiments with warnings.')
+    parser.add_argument('-d', '--directory', nargs='?', help='Enter a path to a directory you want the ßiles saved to (default is current directory).')
+    return parser.parse_args()
+
 
 if args.directory is None:
     directory=os.getcwd()
