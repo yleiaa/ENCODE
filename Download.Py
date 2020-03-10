@@ -50,6 +50,8 @@ def parseArguments():
     parser.add_argument('-d', '--directory', nargs='?', help='Enter a path to a directory you want the ßiles saved to (default is current directory).')
     return parser.parse_args()
 
+args = parseArguments()
+
 
 if args.directory is None:
     directory=os.getcwd()
