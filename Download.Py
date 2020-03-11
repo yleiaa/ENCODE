@@ -122,8 +122,56 @@ def findEnds(targetURL):
                     print(str(j.get('doc_count'))+' '+j.get('key')+' results found.')
                     PE += j.get('doc_count')
     return SE, PE
-                        
 
+def collectTargetPgURLs(url):
+    targetPgURLs=[]
+    with urllib.request.urlopen(url+'&format=json') as page:
+        page=json.loads(page.read().decode())
+        for i in page.get('@graph'):
+            targetPgURLs.append('https://www.encodeproject.org/'+i.get('@id')+'?format=json')
+    return targetPgURLs
+
+def collectLinkPaths(targetPgURLs, directory, target, biosample, add):
+    n=0
+    tLinks=[]
+    tFullPaths=[]
+    cntlPgURLs=[]
+    cFullPaths=[]
+    cLinks=[]
+    for i in targetPgURLs:
+        n+=1
+        path=os.path.join(directory, add+'.'+target+'.'+str(n)+'.'+biosample+'.'+i[43:-13])
+        print(path)
+        # try:
+        #     os.mkdir(path)
+        # except OSError:
+        #     print('Error creating a new folder.')
+        #     sys.exit()
+        with urllib.request.urlopen(i) as page:
+            page=json.loads(page.read().decode())
+            for j in page['files']:
+                if j.get('file_type')=='fastq':
+                    tLinks.append('https://www.encodeproject.org/'+j.get('href'))
+                    tfullPath=os.path.join(path, target+'.'+j.get('href')[30:])
+                    tFullPaths.append(tfullPath)
+            cntl=page['possible_controls'][0]['@id']
+            cntlPgURLs.append('https://www.encodeproject.org/'+cntl+'?format=json')
+            cfullPath=os.path.join(path, 'CNTL.'+biosample+'.'+cntl[13:-1]+'.fastq.gz')
+            cFullPaths.append(cfullPath)
+    for i in cntlPgURLs:
+        with urllib.request.urlopen(i) as page:
+            page=json.loads(page.read().decode())
+            for i in page['files']:
+                if i.get('file_type')=='fastq':
+                    cLinks.append('https://www.encodeproject.org/'+i.get('href'))
+    return tLinks, tFullPaths, cLinks, cFullPaths
+
+def download(link, path):
+    try:
+        urllib.request.urlretrieve(link, path)
+    except urllib.request.ContentTooShortError:
+        sys.exit()
+    
 def main():
 
     args = parseArguments()
@@ -141,7 +189,41 @@ def main():
     biosample, url2 = checkBiosample(args.biosample, base)
     target, targetURL = checkTarget(args.target, url2)
 
-    SE, PE = (findEnds(targetURL))
+    SE, PE  = findEnds(targetURL)
 
+    if SE > 0:
+        seURL=targetURL+'&files.run_type=single-ended'
+        sePgURLs=collectTargetPgURLs(seURL)
+        tLinks, tFullPaths, cLinks, cFullPaths = collectLinkPaths(sePgURLs, directory, target, biosample, 'se')
+       
+        a = [(i, j) for i in tLinks for j in tFullPaths]
+        print('Beginning single-ended target download.')
+        with ThreadPool() as pool:
+            results=pool.starmap(download, a)
+        print('Single-ended target download completed.')
+
+        b = [(i, j) for i in cLinks for j in cFullPaths]
+        print('Beginning single-ended control download.')
+        with ThreadPool() as pool:
+            results=pool.starmap(download, b)
+        print('Single-ended control download completed.')
+
+    if PE > 0:
+        peURL=targetURL+'&files.run_type=paired-ended'
+        pePgURLs=collectTargetPgURLs(peURL)
+        tLinks, tFullPaths, cLinks, cFullPaths = collectLinkPaths(pePgURLs, directory, target, biosample, 'pe')
+
+        a = [(i, j) for i in tLinks for j in tFullPaths]
+        print('Beginning paired-ended target download.')
+        with ThreadPool() as pool:
+            results=pool.starmap(download, a)
+        print('Paired-ended target download completed.')
+
+        b = [(i, j) for i in cLinks for j in cFullPaths]
+        print('Beginning paired-ended control download.')
+        with ThreadPool() as pool:
+            results=pool.starmap(download, b)
+        print('Paired-ended control download completed.')
+        
 if __name__ == '__main__':
     main()
