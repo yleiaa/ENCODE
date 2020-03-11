@@ -142,11 +142,11 @@ def collectLinkPaths(targetPgURLs, directory, target, biosample, add):
         n+=1
         path=os.path.join(directory, add+'.'+target+'.'+str(n)+'.'+biosample+'.'+i[43:-13])
         print(path)
-        # try:
-        #     os.mkdir(path)
-        # except OSError:
-        #     print('Error creating a new folder.')
-        #     sys.exit()
+        try:
+            os.mkdir(path)
+        except OSError:
+            print('Error creating a new folder.')
+            sys.exit()
         with urllib.request.urlopen(i) as page:
             page=json.loads(page.read().decode())
             for j in page['files']:
