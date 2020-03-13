@@ -195,13 +195,13 @@ def main():
         sePgURLs=collectTargetPgURLs(seURL)
         tLinks, tFullPaths, cLinks, cFullPaths = collectLinkPaths(sePgURLs, directory, target, biosample, 'se')
        
-        a = [(i, j) for i in tLinks for j in tFullPaths]
+        a = list(zip(tLinks, tFullPaths))
         print('Beginning single-ended target download.')
         with ThreadPool() as pool:
             results=pool.starmap(download, a)
         print('Single-ended target download completed.')
 
-        b = [(i, j) for i in cLinks for j in cFullPaths]
+        b = list(zip(cLinks, cFullPaths))
         print('Beginning single-ended control download.')
         with ThreadPool() as pool:
             results=pool.starmap(download, b)
@@ -212,13 +212,13 @@ def main():
         pePgURLs=collectTargetPgURLs(peURL)
         tLinks, tFullPaths, cLinks, cFullPaths = collectLinkPaths(pePgURLs, directory, target, biosample, 'pe')
 
-        a = [(i, j) for i in tLinks for j in tFullPaths]
+        a = list(zip(tLinks, tFullPaths))
         print('Beginning paired-ended target download.')
         with ThreadPool() as pool:
             results=pool.starmap(download, a)
         print('Paired-ended target download completed.')
 
-        b = [(i, j) for i in cLinks for j in cFullPaths]
+        b = list(zip(cLinks, cFullPaths))
         print('Beginning paired-ended control download.')
         with ThreadPool() as pool:
             results=pool.starmap(download, b)
