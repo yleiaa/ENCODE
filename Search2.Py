@@ -128,19 +128,18 @@ def collectTargetPgURLs(url):
     with urllib.request.urlopen(url+'&format=json') as page:
         page=json.loads(page.read().decode())
         for i in page.get('@graph'):
-            targetPgURLs.append('https://www.encodeproject.org/'+i.get('@id')+'?format=json')
+            targetPgURLs.append('https://www.encodeproject.org'+i.get('@id')+'?format=json')
     return targetPgURLs
 
 def collectLinkPaths(targetPgURLs, directory, target, biosample, add):
     n=0
     tLinks=[]
     tFullPaths=[]
-    cntlPgURLs=[]
-    cFullPaths=[]
     cLinks=[]
+    cFullPaths=[]
     for i in targetPgURLs:
         n+=1
-        path=os.path.join(directory, add+'.'+target+'.'+str(n)+'.'+biosample+'.'+i[43:-13])
+        path=os.path.join(directory, add+'.'+biosample+'.'+target+'.'+str(n)+'.'+i[42:-13])
         try:
             os.mkdir(path)
         except OSError:
@@ -150,19 +149,15 @@ def collectLinkPaths(targetPgURLs, directory, target, biosample, add):
             page=json.loads(page.read().decode())
             for j in page['files']:
                 if j.get('file_type')=='fastq':
-                    tLinks.append('https://www.encodeproject.org/'+j.get('href'))
-                    tfullPath=os.path.join(path, target+'.'+j.get('href')[30:])
-                    tFullPaths.append(tfullPath)
+                    tLinks.append('https://www.encodeproject.org'+j.get('href'))
+                    tFullPaths.append((os.path.join(path, target+'.'+j.get('href')[30:])))
             cntl=page['possible_controls'][0]['@id']
-            cntlPgURLs.append('https://www.encodeproject.org/'+cntl+'?format=json')
-            cfullPath=os.path.join(path, 'CNTL.'+biosample+'.'+cntl[13:-1]+'.fastq.gz')
-            cFullPaths.append(cfullPath)
-    for i in cntlPgURLs:
-        with urllib.request.urlopen(i) as page:
+        cLink='https://www.encodeproject.org/search/?type=File&dataset='+cntl+'&file_format=fastq&format=json&frame=object&limit=all'
+        with urllib.request.urlopen(cLink) as page:
             page=json.loads(page.read().decode())
-            for i in page['files']:
-                if i.get('file_type')=='fastq':
-                    cLinks.append('https://www.encodeproject.org/'+i.get('href'))
+            for k in page['@graph']:
+                cLinks.append('https://www.encodeproject.org'+k.get('href'))
+                cFullPaths.append(os.path.join(path, 'CNTL.'+biosample+'.'+k.get('href')[30:]))
     return tLinks, tFullPaths, cLinks, cFullPaths
 
 def download(link, path):
@@ -190,35 +185,39 @@ def main():
 
     SE, PE  = findEnds(targetURL)
 
+
     if SE > 0:
         seURL=targetURL+'&files.run_type=single-ended'
         sePgURLs=collectTargetPgURLs(seURL)
-        tLinks, tFullPaths, cLinks, cFullPaths = collectLinkPaths(sePgURLs, directory, target, biosample, 'se')
-       
-        a = [(i, j) for i in tLinks for j in tFullPaths]
+
+        tLinks, tFullPaths, cLinks, cFullPaths = collectLinkPaths(sePgURLs, directory, target, biosample, 's')
+        
+
+        a = list(zip(tLinks, tFullPaths))
         print('Beginning single-ended target download.')
         with ThreadPool() as pool:
             results=pool.starmap(download, a)
         print('Single-ended target download completed.')
 
-        b = [(i, j) for i in cLinks for j in cFullPaths]
+        b = list(zip(cLinks, cFullPaths))
         print('Beginning single-ended control download.')
         with ThreadPool() as pool:
             results=pool.starmap(download, b)
         print('Single-ended control download completed.')
 
+
     if PE > 0:
         peURL=targetURL+'&files.run_type=paired-ended'
         pePgURLs=collectTargetPgURLs(peURL)
-        tLinks, tFullPaths, cLinks, cFullPaths = collectLinkPaths(pePgURLs, directory, target, biosample, 'pe')
+        tLinks, tFullPaths, cLinks, cFullPaths = collectLinkPaths(pePgURLs, directory, target, biosample, 'p')
 
-        a = [(i, j) for i in tLinks for j in tFullPaths]
+        a = list(zip(tLinks, tFullPaths))
         print('Beginning paired-ended target download.')
         with ThreadPool() as pool:
             results=pool.starmap(download, a)
         print('Paired-ended target download completed.')
 
-        b = [(i, j) for i in cLinks for j in cFullPaths]
+        b = list(zip(cLinks, cFullPaths))
         print('Beginning paired-ended control download.')
         with ThreadPool() as pool:
             results=pool.starmap(download, b)
