@@ -70,7 +70,7 @@ def checkBiosample(biosample, base):
         url1=base+'&format=json'
         with urllib.request.urlopen(url1) as page:
             page=json.loads(page.read().decode())
-            outputOptions(page['facets'][11]['terms'])
+            outputOptions(page['facets'][9]['terms'])
             biosample=enterOption()
     while True:
         biosampleURL=base+'&biosample_ontology.term_name='+biosample
@@ -81,7 +81,7 @@ def checkBiosample(biosample, base):
             print('Pick a new biosample:')
             with urllib.request.urlopen(url1) as page:
                 page=json.loads(page.read().decode())
-                outputOptions(page['facets'][11]['terms'])
+                outputOptions(page['facets'][9]['terms'])
                 biosample=enterOption()
     return biosample, biosampleURL
 
@@ -92,7 +92,7 @@ def checkTarget(target, url2):
         url3=url2+'&format=json'
         with urllib.request.urlopen(url3) as page:
             page=json.loads(page.read().decode())
-            outputOptions(page['facets'][8]['terms'])
+            outputOptions(page['facets'][6]['terms'])
             target=enterOption()
     while True: 
         targetURL=url2+'&target.label='+target
@@ -103,7 +103,7 @@ def checkTarget(target, url2):
             print('Pick a new target:')
             with urllib.request.urlopen(url2+'&format=json') as page:
                 page=json.loads(page.read().decode())
-                outputOptions(page['facets'][8]['terms'])
+                outputOptions(page['facets'][6]['terms'])
                 target=enterOption()
     return target, targetURL
 
